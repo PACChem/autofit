@@ -13,7 +13,7 @@
      &  basis(maxterm),ibasis(maxterm),r(maxpair),
      &  rrr(maxdata,maxpair),index(maxatom,maxatom),ix(maxperm,maxpair)
       character*2 symb(maxatom),dum
-      logical lreadbasis
+      logical lreadbasis,lreaddisc
  
       common/foox/rrr,nncoef
 
@@ -28,6 +28,7 @@
       read(5,*)(symb(k),k=1,natom)
       read(5,*)ipow,ipowt
       read(5,*)lreadbasis
+      read(5,*)lreaddisc
       npairs=natom*(natom-1)/2            ! Number of interatomic pairs
       if (npairs.gt.maxpair) then
         print *,"npairs (",npairs,") > maxpair (",maxpair,")"
@@ -221,7 +222,8 @@ c     &   ii,ibasis(ii),(ind(ii,j),j=1,npairs)
       nncoef=nbasis
 
 c remove disconnected terms
-      IF (.FALSE.) THEN   
+c      IF (.FALSE.) THEN   
+      IF (lreaddisc) THEN
         ndisc=0
         do ii=1,nterms
           npx=0
