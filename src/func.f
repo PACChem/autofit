@@ -4,6 +4,7 @@
 
       implicit double precision(a-h,o-z)
       include 'param.inc'
+      integer c,di,discpairs,discind,pairpair,npow
       dimension iagroup(maxatom),
      &  ind(maxterm,maxpair),
      &  iatom(maxperm,maxatom),
@@ -11,10 +12,12 @@
      &  idum2(maxperm,maxatom),
      &  idum3(maxperm,maxatom),nperm0(maxperm),nperm1(maxperm),
      &  basis(maxterm),ibasis(maxterm),r(maxpair),
-     &  rrr(maxdata,maxpair),index(maxatom,maxatom),ix(maxperm,maxpair)
-      character*2 symb(maxatom),dum
+     &  rrr(maxdata,maxpair),index(maxatom,maxatom),ix(maxperm,maxpair),
+     &  discpairs(maxpair),discind(maxatom,maxatom),
+     &  pairpair(maxpair,maxpair),npow(maxpair)
+      character*2 symb(maxatom),dum,dsymb1,dsymb2
       logical lreadbasis,lreaddisc
- 
+
       common/foox/rrr,nncoef
 
       save npairs,nterms,ind,ibasis
@@ -24,12 +27,19 @@
         print *,"natom (",natom,") > maxatom (",maxatom,")"
         stop
       endif
+
       read(5,*)(iagroup(k),k=1,natom)
       read(5,*)(symb(k),k=1,natom)
       read(5,*)ipow,ipowt
       read(5,*)lreadbasis
       read(5,*)lreaddisc
+c DISC
+      if (lreaddisc) then
+        read(5,*)dsymb1,dsymb2
+      endif
+
       npairs=natom*(natom-1)/2            ! Number of interatomic pairs
+
       if (npairs.gt.maxpair) then
         print *,"npairs (",npairs,") > maxpair (",maxpair,")"
         stop
@@ -41,11 +51,9 @@
       write(6,'(a10,100i5)')"Index",(i,i=1,natom)
       write(6,'(a10,100i5)')"Group",(iagroup(i),i=1,natom)
 
-
 ccc GENERATE BASIS ccc
-      if (.not.lreadbasis) then
+      IF (.not.lreadbasis) THEN
 ccc GENERATE BASIS ccc
-
 
 c     generate atom permutation lists
       do i=1,natom
@@ -72,6 +80,7 @@ c     generate atom permutation lists
         call heapp(idum,n,n,idum2,npermute)
         nperm0(i)=nn+1
         nperm1(i)=nn+npermute
+
         do k=1,npermute
           nn=nn+1
           m=0
@@ -81,15 +90,14 @@ c     generate atom permutation lists
               m=m+1
               idum3(nn,j)=idum2(k,m)
             endif
-          enddo
-        enddo
+          enddo ! j=1,natom
+        enddo ! k=1,npermute
       enddo ! i=1,ngroup
 
       ntmp=1
       do i=1,ngroup
         idum(i)=nperm0(i)
-        print *,"Group ",i," has ",(nperm1(i)-nperm0(i)+1),
-     & " permutations"
+      print *,"Group ",i," has ",(nperm1(i)-nperm0(i)+1)," permutations"
         ntmp=ntmp*(nperm1(i)-nperm0(i)+1)
       enddo
       print *,"For a total of ",ntmp," permutations"
@@ -122,12 +130,12 @@ c     generate atom permutation lists
           endif
         enddo 
 
-      enddo ! while (.true.)
+      enddo
  778  continue
 
       print *
       print *,'Atom permutations',npermute
-      do i=1,min(npermute,100)
+      do i=1,min(npermute,100) ! prints only first 100 permutations
         print *,i,":",(iatom(i,j),j=1,natom)
       enddo
 
@@ -145,7 +153,7 @@ c     generate atom permutation lists
       write(6,'(22x,100(a3,"- ",a3,4x))')
      &   ((symb(i),symb(j),j=1+i,natom),i=1,natom) 
       write(6,'(21x,100(i3," -",i3,4x))')((i,j,j=1+i,natom),
-     &   i=1,natom) 
+     &   i=1,natom)
       do ii=1,npermute
         iix=0
         do i=1,natom
@@ -186,17 +194,12 @@ c generate terms using individual power constraints
           endif
         enddo
       enddo
-
  400  continue
       nterms=ii-1
-
-c      print *
-c      print *,"Basis # (Group):  Powers"
 
 c symmetrize
       nbasis=0
       DO ii=1,nterms
-        if (mod(ii,100).eq.0) print *,"symmetrizing ",ii," / ",nterms
         ifail=0
         do i=1,ii-1
           do j=1,npermute
@@ -221,24 +224,107 @@ c     &   ii,ibasis(ii),(ind(ii,j),j=1,npairs)
 
       nncoef=nbasis
 
-c remove disconnected terms
-c      IF (.FALSE.) THEN   
-      IF (lreaddisc) THEN
-        ndisc=0
-        do ii=1,nterms
-          npx=0
-          ipx=0
-          do i=1,npairs
-            if (ind(ii,i).ne.0) then
-              npx=npx+1
-              ipx=ipx+i
+c DISC remove disconnected terms
+c 1: find pairs P1 that have same atoms as monitored pair
+c 2: record atom indices of pairs P1
+c 3: find other pair(s) (P2) sharing 0 or 1 (not both) atom types as pair P1
+c 4: if neither atom of pair P2 has the same index as those in pair P1,
+c     classify as disconnected term if only includes powers of these pairs
+
+      if (lreaddisc) then
+        do i=1,npairs      
+          discpairs(i)=0
+          discind(i,1)=0
+          discind(i,2)=0
+        enddo
+
+c       steps 1 and 2
+        di=0
+        print *,"Checking connectedness of ",dsymb1,"and ",dsymb2
+        do i=1,natom
+          icheck=0
+          iicheck=0
+          ! check symb(i)
+          if (symb(i).eq.dsymb1) then ! if symb(i) = O
+            icheck=1
+            iicheck=1
+          elseif (symb(i).eq.dsymb2) then ! if symb(i) = H
+            icheck=1
+            iicheck=2
+          else
+            go to 500
+          endif
+c          print *,icheck,iicheck
+          ! check symb(j)
+          do j=i+1,natom
+            if (iicheck.eq.1) then ! symb(i) = O
+              if (symb(j).eq.dsymb2) then ! if symb(j) = H
+                di=di+1
+                discpairs(index(i,j))=1
+c                discpairs(index(j,i))=1
+                discind(di,1)=i
+                discind(di,2)=j
+              endif
+            elseif (iicheck.eq.2) then ! symb(i) = H
+              if (symb(i).eq.dsymb1) then ! if symb(j) = O
+                di=di+1
+                discpairs(index(i,j))=1
+c                discpairs(index(j,i))=1
+                discind(di,1)=i
+                discind(di,2)=j
+              endif
             endif
           enddo
-c        !!! THIS TEST IS SPECIFIC TO OHHH !!!
-          if (npx.eq.2.and.ipx.eq.7) then
-c          print *,"unconnected"
-c      write(6,'(i5,"  (",i5,"):",100i8)')
-c     &   ii,ibasis(ii),(ind(ii,j),j=1,npairs)
+ 500      continue
+        enddo
+        print *,dsymb1,"- ",dsymb2,"pairs "
+        write(6,'(100i8)')
+     &   (discpairs(i),i=1,npairs)
+      ! should give discpairs(1,2,3)=1 (O-H bond pairs)
+c
+c       step 3 - create pair-pair matrix -- PARALLELIZE
+        do i=1,npairs
+          npow(i)=0
+          do j=1,npairs
+            pairpair(i,j)=-1
+          enddo
+        enddo
+
+        do c=1,di ! disconnected pairs
+          i=discind(c,1) ! pair 1, atom 1
+          j=discind(c,2) ! pair 1, atom 2
+          do k=i+1,natom ! pair 2, atom 1
+            do l=k+1,natom ! pair 2, atom 2
+              if (j.ne.k.and.j.ne.l) then
+                pairpair(index(i,j),index(k,l))=1
+                pairpair(index(k,l),index(i,j))=1
+              else
+                pairpair(index(i,j),index(k,l))=0
+                pairpair(index(k,l),index(i,j))=0
+              endif
+            enddo
+          enddo
+        enddo
+
+        ndisc=0
+        do ii=1,nterms ! basis terms
+          npx=0 ! number of pairs
+          ipx=0 ! total power of pairs
+          do i=1,npairs ! permutation pairs
+            if (ind(ii,i).ne.0) then ! if there are powers of ii
+              npx=npx+1
+              ipx=ipx+i
+              npow(npx)=i
+            endif
+          enddo
+
+c DISC  new general test
+          if (npx.eq.2.and.pairpair(npow(1),npow(2)).eq.1) then ! pair is a monitored pair
+c            print *,npow(1),npow(2)
+            print *,"unconnected"
+            write(6,'(i5,"  (",i5,"):",100i8)')
+     &      ii,ibasis(ii),(ind(ii,j),j=1,npairs)
+
             ndupe=0
             do j=1,ndisc
               if (idisc(j).eq.ibasis(ii)) ndupe=1
@@ -248,64 +334,69 @@ c     &   ii,ibasis(ii),(ind(ii,j),j=1,npairs)
               idisc(ndisc)=ibasis(ii)
             endif
           endif
-        enddo
+        enddo ! ii=1,nterms
+ 
         print *
-        print *,"disconncted groups: ",(idisc(j),j=1,ndisc)
-      ENDIF ! TURN OFF
-c end remove disconnected terms, can delete this whole section to turn this off
+        print *,"disconnected groups: ",(idisc(j),j=1,ndisc)
+c end identify disconnected terms
+c remove disconnected terms
+        do ii=nterms,1,-1
+          ibad=0
+          do j=1,ndisc
+            if (ibasis(ii).eq.idisc(j)) ibad=1
+          enddo
+          if (ibad.eq.1) then
+            nterms=nterms-1
+            do jj=ii,nterms
+              ibasis(jj)=ibasis(jj+1)
+              do k=1,npairs
+                ind(jj,k)=ind(jj+1,k)
+              enddo
+            enddo
+          endif
+        enddo
+
+        do ii=1,nterms
+          nx=ibasis(ii)
+          do i=1,ndisc
+            if (nx.gt.idisc(i)) ibasis(ii)=ibasis(ii)-1
+          enddo
+        enddo
+      endif ! lreaddisc
+c end remove disconnected terms
 
       print *
       print *,"Basis # (Group):  Powers"
- 
-      do ii=nterms,1,-1
-        ibad=0
-        do j=1,ndisc
-          if (ibasis(ii).eq.idisc(j)) ibad=1
-        enddo
-        if (ibad.eq.1) then
-          nterms=nterms-1
-          do jj=ii,nterms
-            ibasis(jj)=ibasis(jj+1)
-            do k=1,npairs
-              ind(jj,k)=ind(jj+1,k)
-            enddo
-          enddo
-        endif
-      enddo
-      do ii=1,nterms
-        nx=ibasis(ii)
-        do i=1,ndisc
-          if (nx.gt.idisc(i)) ibasis(ii)=ibasis(ii)-1
-        enddo
-      enddo
+
       do ii=1,nterms
         write(6,'(i5,"  (",i5,"):",100i8)')
      &   ii,ibasis(ii),(ind(ii,j),j=1,npairs)
       enddo
+
       nbasis=nbasis-ndisc
       nncoef=nbasis
       print *,'nncoef = ',nncoef
+
       open(55,file="basis.dat")
       write(55,*)natom,npairs,nncoef,nterms,
      & " ! atom pairs, coefficients, terms"
       write(55,*)" TERM GROUP :     EXPONENTS"
       do ii=1,nterms
-        write(55,'(2i6," : ",1000i5)')
+      write(55,'(2i6," : ",1000i5)')
      &   ii,ibasis(ii),(ind(ii,j),j=1,npairs)
       enddo
       close(55)
 
 ccc READ BASIS ccc
-      else
-      open(55,file="basis.dat")
-      read(55,*)natom,npairs,nncoef,nterms
-      read(55,*)
-      do i=1,nterms
-        read(55,*)k,ibasis(k),dum,(ind(k,j),j=1,npairs)
-      enddo
-      close(55)
-
-      endif
+      ELSE
+        open(55,file="basis.dat")
+        read(55,*)natom,npairs,nncoef,nterms
+        read(55,*)
+        do i=1,nterms
+          read(55,*)k,ibasis(k),dum,(ind(k,j),j=1,npairs)
+        enddo
+        close(55)
+      ENDIF
 
       return
 
@@ -323,7 +414,7 @@ ccc READ BASIS ccc
         arg=1.d0
         do j=1,npairs
           arg=arg*(r(j)**ind(i,j))
-c          if (iii.eq.1) print *,"lll",i,j,arg
+c      if (iii.eq.1) print *,"lll",i,j,arg
         enddo
         basis(ibasis(i))=basis(ibasis(i))+arg
       enddo
@@ -342,10 +433,10 @@ c          if (iii.eq.1) print *,"lll",i,j,arg
       integer iagroup(maxatom)
 
       if (size.eq.1) then
-        ii=ii+1
-        do i=1,n
-          iia(ii,i)=ia(i)
-        enddo
+         ii=ii+1
+         do i=1,n
+           iia(ii,i)=ia(i)
+         enddo
         return
       endif
 
@@ -359,7 +450,8 @@ c          if (iii.eq.1) print *,"lll",i,j,arg
           tmp=ia(i)
           ia(i)=ia(size)
           ia(size)=tmp
-        endif
+      endif
+
       enddo
 
       end subroutine
