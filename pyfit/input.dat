@@ -1,0 +1,20 @@
+$training_data
+EnergyRanges          250. 100. 500. 20.
+BatchZeroes           15.6  0.0  21.9
+EnergyWeights         0.   1.   1.   5.
+Epsilon               50.
+DataBatches           prod.dat reac.dat sp.dat
+BatchWeights          1. 1. 1.
+EnergyUnits           Kcal/mol
+$end
+
+$functional_form
+NumAtoms              4
+Symbols               O H H H
+Groups                1 2 2 2
+TotalOrder            5
+FactorOrder           5
+GenerateBasis         F
+GenerateDisconnected  T
+CheckDisconnected     O H
+$end
