@@ -17,9 +17,10 @@ from ._input import read_symbols
 from ._input import read_groups
 from ._input import read_total_order
 from ._input import read_factor_order
-from ._input import read_generate_basis
-from ._input import read_generate_disconnected
-from ._input import read_disconnected
+from ._input import read_read_basis
+from ._input import read_find_disconnected
+from ._input import read_disconnected_groups
+from ._input import read_monitor_groups
 from ._input import check_functional_form_keywords
 
 #Input File
@@ -46,8 +47,9 @@ __all__ = [
     'read_groups',
     'read_total_order',
     'read_factor_order',
-    'read_generate_basis',
-    'read_generate_disconnected',
-    'read_disconnected',
+    'read_read_basis',
+    'read_find_disconnected',
+    'read_disconnected_groups',
+    'read_monitor_groups',
     'check_functional_form_keywords'
 ]
