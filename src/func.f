@@ -4,7 +4,7 @@
 
       implicit double precision(a-h,o-z)
       include 'param.inc'
-      integer c,di,discpairs,discind,pairpair,npow
+      integer c,di,discpairs,discind,pairpair,npow,dgroup,dg1,dg2
       dimension iagroup(maxatom),
      &  ind(maxterm,maxpair),
      &  iatom(maxperm,maxatom),
@@ -14,8 +14,8 @@
      &  basis(maxterm),ibasis(maxterm),r(maxpair),
      &  rrr(maxdata,maxpair),index(maxatom,maxatom),ix(maxperm,maxpair),
      &  discpairs(maxpair),discind(maxatom,maxatom),
-     &  pairpair(maxpair,maxpair),npow(maxpair)
-      character*2 symb(maxatom),dum,dsymb1,dsymb2
+     &  pairpair(maxpair,maxpair),npow(maxpair),dgroup(maxatom)
+      character*2 symb(maxatom),dum!,dsymb1,dsymb2
       logical lreadbasis,lreaddisc
 
       common/foox/rrr,nncoef
@@ -35,7 +35,9 @@
       read(5,*)lreaddisc
 c DISC
       if (lreaddisc) then
-        read(5,*)dsymb1,dsymb2
+c        read(5,*)dsymb1,dsymb2
+        read(5,*)(dgroup(k),k=1,natom) ! disconnected group numbers      (e.g. 1 2 2 2)     (1 2 2 2 2 3 3)
+        read(5,*)dg1,dg2         ! disconnected groups to monitor  (e.g. 1 2)         (1 3)
       endif
 
       npairs=natom*(natom-1)/2            ! Number of interatomic pairs
@@ -240,15 +242,17 @@ c     classify as disconnected term if only includes powers of these pairs
 
 c       steps 1 and 2
         di=0
-        print *,"Checking connectedness of ",dsymb1,"and ",dsymb2
+        print *,"Checking connectedness of ",symb(dg1),"and ",symb(dg2)
         do i=1,natom
           icheck=0
           iicheck=0
           ! check symb(i)
-          if (symb(i).eq.dsymb1) then ! if symb(i) = O
+c          if (symb(i).eq.dsymb1) then ! if symb(i) = O
+          if (iagroup(i).eq.dg1) then ! if iagroup(i) = 1
             icheck=1
             iicheck=1
-          elseif (symb(i).eq.dsymb2) then ! if symb(i) = H
+c          elseif (symb(i).eq.dsymb2) then ! if symb(i) = H
+          elseif (iagroup(i).eq.dg2) then ! if iagroup(i) = 2
             icheck=1
             iicheck=2
           else
@@ -258,7 +262,8 @@ c          print *,icheck,iicheck
           ! check symb(j)
           do j=i+1,natom
             if (iicheck.eq.1) then ! symb(i) = O
-              if (symb(j).eq.dsymb2) then ! if symb(j) = H
+c              if (symb(j).eq.dsymb2) then ! if symb(j) = H
+              if (iagroup(j).eq.dg2) then ! if iagroup(j) = 2
                 di=di+1
                 discpairs(index(i,j))=1
 c                discpairs(index(j,i))=1
@@ -266,7 +271,8 @@ c                discpairs(index(j,i))=1
                 discind(di,2)=j
               endif
             elseif (iicheck.eq.2) then ! symb(i) = H
-              if (symb(i).eq.dsymb1) then ! if symb(j) = O
+c              if (symb(i).eq.dsymb1) then ! if symb(j) = O
+              if (iagroup(i).eq.dg1) then ! if iagroup(j) = 1
                 di=di+1
                 discpairs(index(i,j))=1
 c                discpairs(index(j,i))=1
@@ -277,7 +283,7 @@ c                discpairs(index(j,i))=1
           enddo
  500      continue
         enddo
-        print *,dsymb1,"- ",dsymb2,"pairs "
+        print *,"Group ",dg1,"- ",dg2,"pairs "
         write(6,'(100i8)')
      &   (discpairs(i),i=1,npairs)
       ! should give discpairs(1,2,3)=1 (O-H bond pairs)

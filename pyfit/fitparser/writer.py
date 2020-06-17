@@ -12,9 +12,10 @@ TEMPLATE_PATH = os.path.join(SRC_PATH, 'templates')
 
 
 def autofit_input(energy_ranges, energy_weights, epsilon,
-                  data_batches, batch_zeroes, batch_weights, energy_units,
-                  num_atoms, symbols, groups, total_order, factor_order,
-                  gen_basis, gen_disconnected, check_disconnected):
+        data_batches, batch_zeroes, batch_weights, energy_units,
+        num_atoms, symbols, atom_groups, total_order, factor_order,
+        read_basis, find_disconnected, disconnected_groups, 
+        monitor_groups):
     """ writes the autofit input file for each instance
     """
 
@@ -29,12 +30,13 @@ def autofit_input(energy_ranges, energy_weights, epsilon,
         "EnergyUnits": energy_units,
         "NumAtoms": num_atoms,
         "Symbols": symbols,
-        "Groups": groups,
+        "AtomGroups": atom_groups,
         "TotalOrder": total_order,
         "FactorOrder": factor_order,
-        "GenerateBasis": gen_basis,
-        "GenerateDisconnected": gen_disconnected,
-        "CheckDisconnected": check_disconnected
+        "ReadBasis": read_basis,
+        "FindDisconnected": find_disconnected,
+        "DisconnectedGroups": disconnected_groups,
+        "MonitorGroups": monitor_groups
     }
 
     # Set template name and path for the autofit input file

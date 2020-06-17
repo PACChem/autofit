@@ -41,12 +41,13 @@ TD_SUPPORTED_KEYWORDS = [
 FF_SUPPORTED_KEYWORDS = [
     'NumAtoms',
     'Symbols', 
-    'Groups',
+    'AtomGroups',
     'TotalOrder',
     'FactorOrder',
-    'GenerateBasis',
-    'GenerateDisconnected',
-    'CheckDisconnected',
+    'ReadBasis',
+    'FindDisconnected',
+    'DisconnectedGroups',
+    'MonitorGroups',
 ]
 
 TD_REQUIRED_KEYWORDS = [
@@ -59,11 +60,11 @@ TD_REQUIRED_KEYWORDS = [
 FF_REQUIRED_KEYWORDS = [
     'NumAtoms',
     'Symbols',
-    'Groups',
+    'AtomGroups',
     'TotalOrder',
     'FactorOrder',
-    'GenerateBasis',
-    'GenerateDisconnected',
+    'ReadBasis',
+    'FindDisconnected',
 ]
 
 # Read the targets and baths sections and species
@@ -77,7 +78,7 @@ def read_energy_ranges(input_string):
                one_or_more(SPACE) + capturing(FLOAT) + # cut0
                one_or_more(SPACE) + capturing(FLOAT) + # cut1
                one_or_more(SPACE) + capturing(FLOAT) + # cut2
-               one_or_more(SPACE) + capturing(FLOAT)) # cut3
+               one_or_more(SPACE) + capturing(FLOAT))  # cut3
     block = _get_training_data_section(input_string)
 
     keyword = first_capture(pattern, block)
@@ -96,10 +97,10 @@ def read_energy_weights(input_string):
     """
 
     pattern = ('EnergyWeights' +
-               one_or_more(SPACE) + capturing(FLOAT) + # cut0
-               one_or_more(SPACE) + capturing(FLOAT) + # cut1
-               one_or_more(SPACE) + capturing(FLOAT) + # cut2
-               one_or_more(SPACE) + capturing(FLOAT)) # cut3
+               one_or_more(SPACE) + capturing(FLOAT) + # weight0
+               one_or_more(SPACE) + capturing(FLOAT) + # weight1
+               one_or_more(SPACE) + capturing(FLOAT) + # weight2
+               one_or_more(SPACE) + capturing(FLOAT))  # weight3
     block = _get_training_data_section(input_string)
 
     keyword = first_capture(pattern, block)
@@ -261,8 +262,6 @@ def read_groups(input_string,natoms):
 
     groups_line = _get_groups_line(input_string,natoms)
 
-    out=' '.join(groups_line)
-
     assert groups_line is not None
     out=' '.join(groups_line)
 
@@ -276,8 +275,7 @@ def _get_groups_line(input_string,natoms):
         tmp.append(one_or_more(SPACE))
         tmp.append(capturing(INTEGER))
 
-    pattern = ('Groups' + ''.join(tmp)
-        )
+    pattern = ('AtomGroups' + ''.join(tmp))
     section = first_capture(pattern, input_string)
 
     assert section is not None
@@ -315,11 +313,11 @@ def read_factor_order(input_string):
     return keyword
 
 
-def read_generate_basis(input_string):
+def read_read_basis(input_string):
     """ 
     """
 
-    pattern = ('GenerateBasis' +
+    pattern = ('ReadBasis' +
                one_or_more(SPACE) + capturing(LOGICAL))
     block = _get_functional_form_section(input_string)
 
@@ -330,11 +328,11 @@ def read_generate_basis(input_string):
     return keyword
 
 
-def read_generate_disconnected(input_string):
+def read_find_disconnected(input_string):
     """ 
     """
 
-    pattern = ('GenerateDisconnected' +
+    pattern = ('FindDisconnected' +
                one_or_more(SPACE) + capturing(LOGICAL))
     block = _get_functional_form_section(input_string)
 
@@ -345,13 +343,40 @@ def read_generate_disconnected(input_string):
     return keyword
 
 
-def read_disconnected(input_string):
+def read_disconnected_groups(input_string,natoms):
     """ 
     """
 
-    pattern = ('CheckDisconnected'
-            + one_or_more(SPACE) + capturing(one_or_more(NONSPACE))
-            + one_or_more(SPACE) + capturing(one_or_more(NONSPACE)))
+    groups_line = _get_disc_groups_line(input_string,natoms)
+
+    assert groups_line is not None
+    out=' '.join(groups_line)
+
+    return out
+
+def _get_disc_groups_line(input_string,natoms):
+    """ grabs the line of text containing atom symbols
+    """
+    tmp = []
+    for _ in range(int(natoms)):
+        tmp.append(one_or_more(SPACE))
+        tmp.append(capturing(INTEGER))
+
+    pattern = ('DisconnectedGroups' + ''.join(tmp))
+    section = first_capture(pattern, input_string)
+
+    assert section is not None
+
+    return section
+
+
+def read_monitor_groups(input_string):
+    """ 
+    """
+
+    pattern = ('MonitorGroups'
+            + one_or_more(SPACE) + capturing(INTEGER)
+            + one_or_more(SPACE) + capturing(INTEGER))
     block = _get_functional_form_section(input_string)
 
     keyword = first_capture(pattern, block)

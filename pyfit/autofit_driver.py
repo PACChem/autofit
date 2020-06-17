@@ -34,12 +34,10 @@ SYMB_LST = fitparser.read_symbols(INPUT_STRING,NATOMS)
 GROUPS = fitparser.read_groups(INPUT_STRING,NATOMS)
 TOTAL_ORDER = fitparser.read_total_order(INPUT_STRING)
 FACTOR_ORDER = fitparser.read_factor_order(INPUT_STRING)
-GENERATE_BASIS_FLAG = fitparser.read_generate_basis(INPUT_STRING)
-GENERATE_DISCONNECTED_FLAG = fitparser.read_generate_disconnected(INPUT_STRING)
-CHECK_DISCONNECTED = fitparser.read_disconnected(INPUT_STRING)
-
-#print(GENERATE_DISCONNECTED_FLAG)
-#print(CHECK_DISCONNECTED)
+READ_BASIS_FLAG = fitparser.read_read_basis(INPUT_STRING)
+FIND_DISCONNECTED_FLAG = fitparser.read_find_disconnected(INPUT_STRING)
+DISCONNECTED_GROUPS = fitparser.read_disconnected_groups(INPUT_STRING,NATOMS)
+MONITOR_GROUPS = fitparser.read_monitor_groups(INPUT_STRING)
 
 # Write paramaters to input file
 print('Writing input file to fit.in ...')
@@ -48,8 +46,9 @@ fitparser.inp_setup.write_fit_input(
     energy_weights=ENERGY_WEIGHTS, epsilon=EPSILON,
     data_batches=DATA_BATCHES, batch_zeroes=BATCH_ZEROES, 
     batch_weights=BATCH_WEIGHTS, energy_units=ENERGY_UNITS, 
-    num_atoms=NATOMS, symbols=SYMB_LST,  
-    groups=GROUPS, total_order=TOTAL_ORDER, factor_order=FACTOR_ORDER,
-    gen_basis=GENERATE_BASIS_FLAG, 
-    gen_disconnected=GENERATE_DISCONNECTED_FLAG,
-    check_disconnected=CHECK_DISCONNECTED)
+    num_atoms=NATOMS, symbols=SYMB_LST, atom_groups=GROUPS, 
+    total_order=TOTAL_ORDER, factor_order=FACTOR_ORDER,
+    read_basis=READ_BASIS_FLAG, 
+    find_disconnected=FIND_DISCONNECTED_FLAG,
+    disconnected_groups=DISCONNECTED_GROUPS,
+    monitor_groups=MONITOR_GROUPS)

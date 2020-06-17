@@ -3,11 +3,12 @@ ${Epsilon}				        ##Record 2
 ${BatchZeroes}  		        ##Record 3
 ${BatchWeights}			    ##Record 4
 ${NumAtoms}				        ##Record 5
-${Groups}	        		    ##Record 6
+${AtomGroups}	        		    ##Record 6
 ${Symbols}  			    	##Record 7
 ${FactorOrder}     ${TotalOrder}	                ##Record 8
-${GenerateBasis}				    ##Record 9
-${GenerateDisconnected}			    	##Record 10
-% if GenerateDisconnected:
-${CheckDisconnected}			        ##Record 11
+${ReadBasis}				    ##Record 9
+${FindDisconnected}			    	##Record 10
+% if FindDisconnected:
+${DisconnectedGroups}			        ##Record 11
+${MonitorGroups}			        ##Record 12
 % endif
