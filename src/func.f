@@ -244,16 +244,18 @@ c       steps 1 and 2
         di=0
         print *,"Checking connectedness of ",symb(dg1),"and ",symb(dg2)
         do i=1,natom
-          icheck=0
+c          icheck=0
           iicheck=0
           ! check symb(i)
 c          if (symb(i).eq.dsymb1) then ! if symb(i) = O
-          if (iagroup(i).eq.dg1) then ! if iagroup(i) = 1
-            icheck=1
+c          if (iagroup(i).eq.dg1) then ! if iagroup(i) = 1
+          if (dgroup(i).eq.dg1) then ! if dgroup(i) = 1
+c            icheck=1
             iicheck=1
 c          elseif (symb(i).eq.dsymb2) then ! if symb(i) = H
-          elseif (iagroup(i).eq.dg2) then ! if iagroup(i) = 2
-            icheck=1
+c          elseif (iagroup(i).eq.dg2) then ! if iagroup(i) = 2
+          elseif (dgroup(i).eq.dg2) then ! if dgroup(i) = 2
+c            icheck=1
             iicheck=2
           else
             go to 500
@@ -263,19 +265,19 @@ c          print *,icheck,iicheck
           do j=i+1,natom
             if (iicheck.eq.1) then ! symb(i) = O
 c              if (symb(j).eq.dsymb2) then ! if symb(j) = H
-              if (iagroup(j).eq.dg2) then ! if iagroup(j) = 2
+c              if (iagroup(j).eq.dg2) then ! if iagroup(j) = 2
+              if (dgroup(j).eq.dg2) then ! if dgroup(j) = 2
                 di=di+1
                 discpairs(index(i,j))=1
-c                discpairs(index(j,i))=1
                 discind(di,1)=i
                 discind(di,2)=j
               endif
             elseif (iicheck.eq.2) then ! symb(i) = H
 c              if (symb(i).eq.dsymb1) then ! if symb(j) = O
-              if (iagroup(i).eq.dg1) then ! if iagroup(j) = 1
+c              if (iagroup(i).eq.dg1) then ! if iagroup(j) = 1
+              if (dgroup(i).eq.dg1) then ! if dgroup(j) = 1
                 di=di+1
                 discpairs(index(i,j))=1
-c                discpairs(index(j,i))=1
                 discind(di,1)=i
                 discind(di,2)=j
               endif
@@ -283,7 +285,7 @@ c                discpairs(index(j,i))=1
           enddo
  500      continue
         enddo
-        print *,"Group ",dg1,"- ",dg2,"pairs "
+        print *,"Group ",dg1,"-",dg2,"pairs "
         write(6,'(100i8)')
      &   (discpairs(i),i=1,npairs)
       ! should give discpairs(1,2,3)=1 (O-H bond pairs)
@@ -292,7 +294,7 @@ c       step 3 - create pair-pair matrix -- PARALLELIZE
         do i=1,npairs
           npow(i)=0
           do j=1,npairs
-            pairpair(i,j)=-1
+            pairpair(i,j)=0
           enddo
         enddo
 
@@ -304,9 +306,6 @@ c       step 3 - create pair-pair matrix -- PARALLELIZE
               if (j.ne.k.and.j.ne.l) then
                 pairpair(index(i,j),index(k,l))=1
                 pairpair(index(k,l),index(i,j))=1
-              else
-                pairpair(index(i,j),index(k,l))=0
-                pairpair(index(k,l),index(i,j))=0
               endif
             enddo
           enddo

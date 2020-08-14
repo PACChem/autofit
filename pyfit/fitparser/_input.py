@@ -176,7 +176,11 @@ def read_batch_weights(input_string):
 
     keyword = first_capture(pattern, block)
 
-    assert keyword is not None
+#    assert keyword is not None
+    if keyword is None:
+        print("No BatchWeights found, setting to 1 1 1")
+        keyword = ('1.','1.','1.')
+
     out='  '.join(keyword)
 
     return out

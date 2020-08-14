@@ -8,4 +8,5 @@
  4      4               !     xi_factor xi_order = maximum values of each morse factor and the total order of the term
  F                      !     F = Compute the basis and write it to basis.dat; T = Read the basis from basis.dat
  F			!     F = Do not consider disconnected terms; T = Consider disconnected terms
- C H
+ 1 2 2 2 2 2
+ 1 2
