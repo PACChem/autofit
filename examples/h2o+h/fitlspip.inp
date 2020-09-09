@@ -1,0 +1,12 @@
+ 250. 100. 50. 20.	!	Energy ranges for fitting error analysis
+ 100.			!	Range parameter (kcal/mol) for the weight function; AKA "v" in eq 7 of PAPER I
+ 3                      !       Number of batches
+ 15.6 0. 21.9    	!	"Zero" of energy for the weight function for each batch; takes place of "min{Vk}" in eq 7 of PAPER I
+ 1. 1. 1.		!	Relative weights of each batch
+ 4			!	Number of atoms
+ 1 2 2 2		!	Atom group of each atom
+ O H H H		!	Name of each atom
+ 4    4 		!	xi_factor xi_order = maximum values of each Morse factor and the total order of the term
+ F			!	F = compute the basis and write it to basis.dat; T = read the basis from basis.dat
+ T 			!	F = do not determine and exclude disconnected terms; T = exclude disconnected terms from basis
+ 1 1 2 2                !       Disconnected groups of atoms in product (only one product channel currently supported)

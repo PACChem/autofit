@@ -2,9 +2,13 @@
 
       subroutine prepot
 
-      implicit double precision(a-h,o-z)
+      implicit double precision(a-h,p-z)
       include 'param.inc'
-      integer c,di,discpairs,discind,pairpair,npow,dgroup,dg1,dg2
+      integer c,dtot,dpcheck,discind,pairpair,npow
+      integer dgroup,dg1,dg2,ndg,dgtot
+!      integer OMP_GET_MAX_THREADS
+!      integer OMP_GET_NUM_THREADS
+!      integer OMP_GET_THREAD_NUM
       dimension iagroup(maxatom),
      &  ind(maxterm,maxpair),
      &  iatom(maxperm,maxatom),
@@ -12,9 +16,11 @@
      &  idum2(maxperm,maxatom),
      &  idum3(maxperm,maxatom),nperm0(maxperm),nperm1(maxperm),
      &  basis(maxterm),ibasis(maxterm),r(maxpair),
+     &  dbasisdr(maxterm,maxpair),
      &  rrr(maxdata,maxpair),index(maxatom,maxatom),ix(maxperm,maxpair),
-     &  discpairs(maxpair),discind(maxatom,maxatom),
-     &  pairpair(maxpair,maxpair),npow(maxpair),dgroup(maxatom)
+     &  dpcheck(maxpair),discind(maxatom,maxatom),
+     &  pairpair(maxpair,maxpair),npow(maxpair),dgroup(maxatom),
+     &  ndg(maxatom)
       character*2 symb(maxatom),dum!,dsymb1,dsymb2
       logical lreadbasis,lreaddisc
 
@@ -35,9 +41,7 @@
       read(5,*)lreaddisc
 c DISC
       if (lreaddisc) then
-c        read(5,*)dsymb1,dsymb2
-        read(5,*)(dgroup(k),k=1,natom) ! disconnected group numbers      (e.g. 1 2 2 2)     (1 2 2 2 2 3 3)
-        read(5,*)dg1,dg2         ! disconnected groups to monitor  (e.g. 1 2)         (1 3)
+        read(5,*)(dgroup(k),k=1,natom) ! disconnected groups of products  (e.g. 1 1 2 2) 
       endif
 
       npairs=natom*(natom-1)/2            ! Number of interatomic pairs
@@ -201,7 +205,14 @@ c generate terms using individual power constraints
 
 c symmetrize
       nbasis=0
+c!$OMP PARALLEL
+c      write(6,"(2(a,i3))") " OpenMP: N_threads = ", 
+c     &   OMP_GET_NUM_THREADS()," thread = ", OMP_GET_THREAD_NUM()
+c!$OMP END PARALLEL
+c!$OMP PARALLEL DO
       DO ii=1,nterms
+        if (mod(ii,100).eq.0) print *,"symmetrizing ",ii," / ",nterms
+c!$OMP THREADPRIVATE(ifail)
         ifail=0
         do i=1,ii-1
           do j=1,npermute
@@ -213,82 +224,107 @@ c symmetrize
           enddo
         enddo
  1010 continue
-
         if (ifail.eq.0) then
           nbasis=nbasis+1
           ibasis(ii)=nbasis
         else
           ibasis(ii)=ibasis(i)
         endif
-c      write(6,'(i5,"  (",i5,"):",100i8)')
-c     &   ii,ibasis(ii),(ind(ii,j),j=1,npairs)
       ENDDO
+c!$OMP END PARALLEL DO
 
       nncoef=nbasis
 
 c DISC remove disconnected terms
-c 1: find pairs P1 that have same atoms as monitored pair
-c 2: record atom indices of pairs P1
+c 1: Identify atom pairs that satisfy possible requirements
+c 2: record atom indices of pairs
 c 3: find other pair(s) (P2) sharing 0 or 1 (not both) atom types as pair P1
 c 4: if neither atom of pair P2 has the same index as those in pair P1,
 c     classify as disconnected term if only includes powers of these pairs
 
       if (lreaddisc) then
+        dgtot=0         ! number of DGs
+        do i=1,natom
+          ndg(i)=0      ! number of atoms in each DG
+        enddo
         do i=1,npairs      
-          discpairs(i)=0
+          dpcheck(i)=0   ! becomes 1 if pair matches DG conditions
           discind(i,1)=0
           discind(i,2)=0
         enddo
+        ndp=0        ! number of disconnected pairs
 
 c       steps 1 and 2
-        di=0
-        print *,"Checking connectedness of ",symb(dg1),"and ",symb(dg2)
         do i=1,natom
-c          icheck=0
-          iicheck=0
-          ! check symb(i)
-c          if (symb(i).eq.dsymb1) then ! if symb(i) = O
-c          if (iagroup(i).eq.dg1) then ! if iagroup(i) = 1
-          if (dgroup(i).eq.dg1) then ! if dgroup(i) = 1
-c            icheck=1
-            iicheck=1
-c          elseif (symb(i).eq.dsymb2) then ! if symb(i) = H
-c          elseif (iagroup(i).eq.dg2) then ! if iagroup(i) = 2
-          elseif (dgroup(i).eq.dg2) then ! if dgroup(i) = 2
-c            icheck=1
-            iicheck=2
-          else
-            go to 500
-          endif
-c          print *,icheck,iicheck
-          ! check symb(j)
-          do j=i+1,natom
-            if (iicheck.eq.1) then ! symb(i) = O
-c              if (symb(j).eq.dsymb2) then ! if symb(j) = H
-c              if (iagroup(j).eq.dg2) then ! if iagroup(j) = 2
-              if (dgroup(j).eq.dg2) then ! if dgroup(j) = 2
-                di=di+1
-                discpairs(index(i,j))=1
-                discind(di,1)=i
-                discind(di,2)=j
-              endif
-            elseif (iicheck.eq.2) then ! symb(i) = H
-c              if (symb(i).eq.dsymb1) then ! if symb(j) = O
-c              if (iagroup(i).eq.dg1) then ! if iagroup(j) = 1
-              if (dgroup(i).eq.dg1) then ! if dgroup(j) = 1
-                di=di+1
-                discpairs(index(i,j))=1
-                discind(di,1)=i
-                discind(di,2)=j
-              endif
-            endif
-          enddo
- 500      continue
+          ndg(dgroup(i))=ndg(dgroup(i))+1
+          if (dgroup(i).gt.dgtot) dgtot=dgroup(i)
         enddo
-        print *,"Group ",dg1,"-",dg2,"pairs "
-        write(6,'(100i8)')
-     &   (discpairs(i),i=1,npairs)
-      ! should give discpairs(1,2,3)=1 (O-H bond pairs)
+        print *,(ndg(i),i=1,dgtot)
+
+        DO dg1=1,dgtot-1
+        if (ndg(dg1).le.1) then
+          print *,"No disconnected groups possible"
+        else
+        DO dg2=dg1+1,dgtot
+          print *,"Checking connections between DGs ",dg1," and ",dg2
+          if (ndg(dg2).le.1) then
+            print *,"No disconnected groups possible"
+          else
+            do i=1,natom
+              do j=i+1,natom
+                ag=0
+                dg=0
+                if (iagroup(i).eq.iagroup(j)) ag=1
+                if (dgroup(i).eq.dgroup(j)) dg=1
+                if (dg.eq.1) then ! if dg = 1, all good
+                  ndp=ndp+1
+                  dpcheck(index(i,j))=1
+                  discind(ndp,1)=i
+                  discind(ndp,2)=j
+                  do k=1,natom ! inner loop over atoms, find matching AGs
+                    if (iagroup(k).eq.iagroup(i)) then
+                      do l=k+1,natom
+                        if (iagroup(l).eq.iagroup(j)) then
+                          if (dpcheck(index(k,l)).eq.0) then
+                            ndp=ndp+1
+                            dpcheck(index(k,l))=1
+                            discind(ndp,1)=k
+                            discind(ndp,2)=l
+                          endif
+                        endif
+                      enddo
+                    elseif (iagroup(k).eq.iagroup(j)) then
+                      do l=k+1,natom
+                        if (iagroup(l).eq.iagroup(i)) then
+                          if (dpcheck(index(k,l)).eq.0) then
+                            ndp=ndp+1
+                            dpcheck(index(k,l))=1
+                            discind(ndp,1)=k
+                            discind(ndp,2)=l
+                          endif
+                        endif
+                      enddo
+                    endif
+                  enddo
+                elseif (ag.eq.1) then ! dg = 0, ag = 1, also all good
+                  ndp=ndp+1
+                  dpcheck(index(i,j))=1
+                  discind(ndp,1)=i
+                  discind(ndp,2)=j
+                endif
+              enddo
+            enddo
+          endif
+        ENDDO
+        endif
+        ENDDO
+
+        print *,"Molecular Groups"
+        write(6,'(15x,100(2x,a2,"- ",a2))')
+     &   ((symb(i),symb(j),j=1+i,natom),i=1,natom) 
+        write(6,'(15x,100i8)')
+     &   (dpcheck(i),i=1,npairs)
+      ! should give dpcheck(1,2,3)=1 (O-H bond pairs)
 c
 c       step 3 - create pair-pair matrix -- PARALLELIZE
         do i=1,npairs
@@ -298,7 +334,7 @@ c       step 3 - create pair-pair matrix -- PARALLELIZE
           enddo
         enddo
 
-        do c=1,di ! disconnected pairs
+        do c=1,ndp ! disconnected pairs
           i=discind(c,1) ! pair 1, atom 1
           j=discind(c,2) ! pair 1, atom 2
           do k=i+1,natom ! pair 2, atom 1
@@ -312,6 +348,7 @@ c       step 3 - create pair-pair matrix -- PARALLELIZE
         enddo
 
         ndisc=0
+        print *,"disconnected terms:"
         do ii=1,nterms ! basis terms
           npx=0 ! number of pairs
           ipx=0 ! total power of pairs
@@ -325,10 +362,10 @@ c       step 3 - create pair-pair matrix -- PARALLELIZE
 
 c DISC  new general test
           if (npx.eq.2.and.pairpair(npow(1),npow(2)).eq.1) then ! pair is a monitored pair
-c            print *,npow(1),npow(2)
-            print *,"unconnected"
             write(6,'(i5,"  (",i5,"):",100i8)')
      &      ii,ibasis(ii),(ind(ii,j),j=1,npairs)
+!            write(6,'(i5,"  (",i5,"):",100i8)')
+!     &      ii,ibasis(ii),(ind(ii,j),j=1,npairs)
 
             ndupe=0
             do j=1,ndisc
@@ -342,8 +379,7 @@ c            print *,npow(1),npow(2)
         enddo ! ii=1,nterms
  
         print *
-        print *,"disconnected groups: ",(idisc(j),j=1,ndisc)
-c end identify disconnected terms
+        print *,"Disconnected groups: ",(idisc(j),j=1,ndisc)
 c remove disconnected terms
         do ii=nterms,1,-1
           ibad=0
@@ -384,7 +420,7 @@ c end remove disconnected terms
 
       open(55,file="basis.dat")
       write(55,*)natom,npairs,nncoef,nterms,
-     & " ! atom pairs, coefficients, terms"
+     & " ! atoms, atom pairs, coefficients, terms"
       write(55,*)" TERM GROUP :     EXPONENTS"
       do ii=1,nterms
       write(55,'(2i6," : ",1000i5)')
@@ -406,22 +442,33 @@ ccc READ BASIS ccc
       return
 
       entry funcs1(iii,basis,ncoef)
+!      entry funcs1(iii,basis,ncoef,dbasisdr)
+
+      !write(6,*)iii,basis,ncoef
 
       do j=1,ncoef
         basis(j)=0.d0
+!        do j=1,npairs
+!          dbasisdr(i,j)=0.d0
+!        enddo
       enddo
 
       do j=1,npairs
         r(j)=dexp(-rrr(iii,j))
+!        r(j)=dexp(-rrr(iii,j)*autoang)
       enddo
 
       do i=1,nterms
         arg=1.d0
         do j=1,npairs
           arg=arg*(r(j)**ind(i,j))
-c      if (iii.eq.1) print *,"lll",i,j,arg
+!          if (ind(i,j).ne.0) arg=arg*(r(j)**ind(i,j))
         enddo
         basis(ibasis(i))=basis(ibasis(i))+arg
+!        do j=1,npairs
+!          dbasisdr(ibasis(i),j)=dbasisdr(ibasis(i),j)   ! dV/dy * dy/dr
+!     &                         -arg*dble(ind(i,j))*autoang
+!        enddo
       enddo
 
       return 

@@ -1,4 +1,4 @@
-       SUBROUTINE svdfit(y,sig,ndata,a,ma,u,v,w,mp,np,chisq)
+       SUBROUTINE svdfit(y,sig,ndata,a,ma,mp,np)
        IMPLICIT NONE
        INTEGER ma,mp,ndata,np,NMAX,MMAX,i,j
        DOUBLE PRECISION chisq,a(ma),sig(ndata),u(mp,np),v(np,np),w(np),

@@ -1,0 +1,10 @@
+# Compiled Object files
+*.o
+
+# Executables
+*.x
+
+# Output files
+*.out
+basis.dat
+coef.dat
