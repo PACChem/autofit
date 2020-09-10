@@ -1,11 +1,12 @@
 $training_data
 EnergyRanges          250. 100. 500. 20.
-BatchZeroes           15.6  0.0  21.9
 EnergyWeights         0.   1.   1.   5.
 Epsilon               50.
-DataBatches           prod.dat reac.dat sp.dat
+NumBatches            3
+BatchZeroes           15.6  0.0  21.9
 BatchWeights          1. 1. 1.
-EnergyUnits           Kcal/mol
+DataSets              ai.all ai.mep ai.dat
+EnergyUnits           kcal/mol
 $end
 
 $functional_form
@@ -16,6 +17,5 @@ TotalOrder            4
 FactorOrder           4
 ReadBasis             F
 FindDisconnected      T
-DisconnectedGroups    1 2 2 2
-MonitorGroups         1 2
+DisconnectedGroups    1 1 2 2
 $end

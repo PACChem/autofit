@@ -33,9 +33,10 @@ TD_SUPPORTED_KEYWORDS = [
     'EnergyRanges',
     'EnergyWeights',
     'Epsilon',
-    'DataBatches',
+    'NumBatches',
     'BatchZeroes',
     'BatchWeights',
+    'DataSets',
     'EnergyUnits',
 ]
 FF_SUPPORTED_KEYWORDS = [
@@ -47,14 +48,14 @@ FF_SUPPORTED_KEYWORDS = [
     'ReadBasis',
     'FindDisconnected',
     'DisconnectedGroups',
-    'MonitorGroups',
 ]
 
 TD_REQUIRED_KEYWORDS = [
     'EnergyRanges',
     'Epsilon',
-    'DataBatches',
+    'NumBatches',
     'BatchZeroes',
+    'DataSets',
     'EnergyUnits',
 ]
 FF_REQUIRED_KEYWORDS = [
@@ -128,13 +129,11 @@ def read_epsilon(input_string):
     return keyword
 
 
-def read_data_batches(input_string):
+def read_num_batches(input_string):
     """ 
     """
 
-    pattern = ('DataBatches' +
-               one_or_more(SPACE) + capturing(one_or_more(NONSPACE)) + 
-               one_or_more(SPACE) + capturing(one_or_more(NONSPACE)) + 
+    pattern = ('NumBatches' +
                one_or_more(SPACE) + capturing(one_or_more(NONSPACE)))
     block = _get_training_data_section(input_string)
 
@@ -146,14 +145,69 @@ def read_data_batches(input_string):
     return out
 
 
-def read_batch_zeroes(input_string):
+def read_batch_zeroes(input_string,num_batches):
     """ 
     """
+    batches_line = _get_floats_line(input_string,'BatchZeroes',num_batches)
 
-    pattern = ('BatchZeroes' +
-               one_or_more(SPACE) + capturing(FLOAT) +
-               one_or_more(SPACE) + capturing(FLOAT) +
-               one_or_more(SPACE) + capturing(FLOAT))
+    assert batches_line is not None
+    if batches_line is None:
+        tmp = []
+        for _ in range(int(num_batches)):
+            tmp.append(one_or_more(SPACE))
+            tmp.append('0')
+
+        print("No BatchZeroes found, setting to "+tmp)
+        out = tmp
+    else:
+        out=' '.join(batches_line)
+
+    return out
+
+
+def read_batch_weights(input_string,num_batches):
+    """ 
+    """
+    batches_line = _get_floats_line(input_string,'BatchWeights',num_batches)
+
+    assert batches_line is not None
+    if batches_line is None:
+        tmp = []
+        for _ in range(int(num_batches)):
+            tmp.append(one_or_more(SPACE))
+            tmp.append('1')
+
+        print("No BatchWeights found, setting to "+tmp)
+        out = tmp
+    else:
+        out=' '.join(batches_line)
+
+    return out
+
+def _get_floats_line(input_string,check_string,num_batches):
+    """ grabs the line of text containing num batches
+    """
+    tmp = []
+    for _ in range(int(num_batches)):
+        tmp.append(one_or_more(SPACE))
+        tmp.append(capturing(FLOAT))
+
+    pattern = (str(check_string) + ''.join(tmp)
+        )
+    section = first_capture(pattern, input_string)
+
+    assert section is not None
+
+    return section
+
+
+def read_data_sets(input_string):
+    """ 
+    """
+    pattern = ('DataSets' +
+               one_or_more(SPACE) + capturing(one_or_more(NONSPACE)) + 
+               one_or_more(SPACE) + capturing(one_or_more(NONSPACE)) + 
+               one_or_more(SPACE) + capturing(one_or_more(NONSPACE)))  
     block = _get_training_data_section(input_string)
 
     keyword = first_capture(pattern, block)
@@ -163,28 +217,6 @@ def read_batch_zeroes(input_string):
 
     return out
 
-
-def read_batch_weights(input_string):
-    """ 
-    """
-
-    pattern = ('BatchWeights' +
-               one_or_more(SPACE) + capturing(FLOAT) +
-               one_or_more(SPACE) + capturing(FLOAT) +
-               one_or_more(SPACE) + capturing(FLOAT))
-    block = _get_training_data_section(input_string)
-
-    keyword = first_capture(pattern, block)
-
-#    assert keyword is not None
-    if keyword is None:
-        print("No BatchWeights found, setting to 1 1 1")
-        keyword = ('1.','1.','1.')
-
-    out='  '.join(keyword)
-
-    return out
-    
 
 def read_energy_units(input_string):
     """ 
@@ -235,8 +267,6 @@ def read_symbols(input_string,natoms):
     """
 
     symb_line = _get_symbols_line(input_string,natoms)
-
-    out=' '.join(symb_line)
 
     assert symb_line is not None
     out=' '.join(symb_line)
@@ -372,23 +402,6 @@ def _get_disc_groups_line(input_string,natoms):
     assert section is not None
 
     return section
-
-
-def read_monitor_groups(input_string):
-    """ 
-    """
-
-    pattern = ('MonitorGroups'
-            + one_or_more(SPACE) + capturing(INTEGER)
-            + one_or_more(SPACE) + capturing(INTEGER))
-    block = _get_functional_form_section(input_string)
-
-    keyword = first_capture(pattern, block)
-
-    assert keyword is not None
-    out=' '.join(keyword)
-
-    return out
 
 
 def _get_functional_form_section(input_string):
